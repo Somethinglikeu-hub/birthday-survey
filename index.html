@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Birthday Survey</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2rem;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+        }
+        .question-block {
+            margin-bottom: 25px;
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .question-label {
+            display: block;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+        .required::after { content: " *"; color: #e74c3c; }
+        input[type="text"], input[type="email"], input[type="number"], select, textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }
+        .options-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 10px;
+        }
+        .option-card {
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        .option-card:hover { border-color: #667eea; background: #f8f9ff; }
+        .option-card.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .option-card input { display: none; }
+        .rating-stars {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+        .rating-stars input { display: none; }
+        .rating-stars label {
+            font-size: 2rem;
+            color: #ddd;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .rating-stars label:hover, .rating-stars label.selected { color: #f39c12; transform: scale(1.2); }
+        .rating-stars input:checked ~ label { color: #f39c12; }
+        .submit-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 10px;
+        }
+        .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4); }
+        .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .success-message {
+            display: none;
+            text-align: center;
+            padding: 40px;
+            color: #27ae60;
+        }
+        .success-message h2 { margin-bottom: 15px; }
+        .error-message {
+            color: #e74c3c;
+            text-align: center;
+            margin-bottom: 15px;
+            display: none;
+        }
+        .progress-bar {
+            height: 4px;
+            background: #e1e5e9;
+            border-radius: 2px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <h1>🎉 Birthday Survey</h1>
+        <p class="subtitle">Help us celebrate! Answer 10 fun questions.</p>
+        
+        <div id="surveyForm">
+            <div class="error-message" id="errorMsg"></div>
+            
+            <!-- Questions will be dynamically inserted here -->
+        </div>
+        
+        <div class="success-message" id="successMsg">
+            <h2>🎉 Thanks for participating!</h2>
+            <p>Your responses have been recorded.</p>
+        </div>
+    </div>
+
+    <script>
+        // ===== FIREBASE CONFIG - REPLACE WITH YOUR OWN =====
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+        // =====================================================
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // 10 Survey Questions
+        const questions = [
+            { id: 'q1', type: 'text', label: 'What is your name?', required: true, placeholder: 'Enter your name' },
+            { id: 'q2', type: 'email', label: 'What is your email?', required: true, placeholder: 'you@example.com' },
+            { id: 'q3', type: 'select', label: 'How did you meet the birthday person?', required: true, options: ['School', 'Work', 'Family', 'Friends', 'Online', 'Other'] },
+            { id: 'q4', type: 'radio', label: 'What is your favorite memory with them?', required: true, options: ['A funny story', 'A deep conversation', 'An adventure together', 'A celebration', 'Just hanging out', 'Other'] },
+            { id: 'q5', type: 'rating', label: 'How much do they mean to you? (1-5)', required: true, min: 1, max: 5 },
+            { id: 'q6', type: 'select', label: 'Which quality do you admire most?', required: true, options: ['Kindness', 'Humor', 'Intelligence', 'Loyalty', 'Creativity', 'Courage'] },
+            { id: 'q7', type: 'radio', label: 'What gift would they love most?', required: true, options: ['Experience', 'Gadget', 'Book', 'Clothing', 'Food/Drink', 'Handmade'] },
+            { id: 'q8', type: 'text', label: 'One word to describe them:', required: true, placeholder: 'e.g., Amazing' },
+            { id: 'q9', type: 'rating', label: 'How likely are you to attend their party? (1-5)', required: true, min: 1, max: 5 },
+            { id: 'q10', type: 'textarea', label: 'Any birthday message for them?', required: false, placeholder: 'Write your message here...' }
+        ];
+
+        let currentQuestion = 0;
+        const answers = {};
+
+        // Render all questions at once (single page)
+        function renderSurvey() {
+            const form = document.getElementById('surveyForm');
+            const errorMsg = document.getElementById('errorMsg');
+            
+            questions.forEach((q, index) => {
+                const block = document.createElement('div');
+                block.className = 'question-block';
+                block.id = `block-${q.id}`;
+                
+                let inputHtml = '';
+                const requiredHtml = q.required ? '<span class="required"></span>' : '';
+                
+                switch(q.type) {
+                    case 'text':
+                    case 'email':
+                        inputHtml = `<input type="${q.type}" id="${q.id}" placeholder="${q.placeholder || ''}" ${q.required ? 'required' : ''}>`;
+                        break;
+                    case 'select':
+                        inputHtml = `<select id="${q.id}" ${q.required ? 'required' : ''}><option value="">Select...</option>${q.options.map(o => `<option value="${o}">${o}</option>`).join('')}</select>`;
+                        break;
+                    case 'radio':
+                        inputHtml = `<div class="options-grid">${q.options.map(o => `<label class="option-card" data-value="${o}"><input type="radio" name="${q.id}" value="${o}" ${q.required ? 'required' : ''}>${o}</label>`).join('')}</div>`;
+                        break;
+                    case 'rating':
+                        inputHtml = `<div class="rating-stars">${Array.from({length: q.max}, (_, i) => i+1).map(n => `<input type="radio" name="${q.id}" id="${q.id}-${n}" value="${n}" ${q.required ? 'required' : ''}><label for="${q.id}-${n}" data-value="${n}">★</label>`).join('')}</div>`;
+                        break;
+                    case 'textarea':
+                        inputHtml = `<textarea id="${q.id}" rows="3" placeholder="${q.placeholder || ''}" ${q.required ? 'required' : ''}></textarea>`;
+                        break;
+                }
+                
+                block.innerHTML = `<label class="question-label" for="${q.id}">${index+1}. ${q.label}${requiredHtml}</label>${inputHtml}`;
+                form.insertBefore(block, errorMsg);
+            });
+
+            // Add submit button
+            const submitBtn = document.createElement('button');
+            submitBtn.className = 'submit-btn';
+            submitBtn.id = 'submitBtn';
+            submitBtn.textContent = 'Submit Survey';
+            submitBtn.onclick = submitSurvey;
+            form.appendChild(submitBtn);
+
+            // Add event listeners for radio cards and stars
+            document.querySelectorAll('.option-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const name = card.querySelector('input').name;
+                    document.querySelectorAll(`.option-card input[name="${name}"]`).forEach(i => i.parentElement.classList.remove('selected'));
+                    card.classList.add('selected');
+                    card.querySelector('input').checked = true;
+                    updateProgress();
+                });
+            });
+
+            document.querySelectorAll('.rating-stars label').forEach(label => {
+                label.addEventListener('click', () => {
+                    const value = label.dataset.value;
+                    const name = label.htmlFor.split('-')[0];
+                    document.querySelectorAll(`.rating-stars input[name="${name}"]`).forEach(i => {
+                        const l = document.querySelector(`label[for="${i.id}"]`);
+                        l.classList.remove('selected');
+                        if (parseInt(l.dataset.value) <= parseInt(value)) l.classList.add('selected');
+                    });
+                    updateProgress();
+                });
+            });
+
+            document.querySelectorAll('input, select, textarea').forEach(el => {
+                el.addEventListener('change', updateProgress);
+                el.addEventListener('input', updateProgress);
+            });
+        }
+
+        function updateProgress() {
+            let filled = 0;
+            questions.forEach(q => {
+                const el = document.getElementById(q.id);
+                if (!el) return;
+                if (q.type === 'radio' || q.type === 'rating') {
+                    const checked = document.querySelector(`input[name="${q.id}"]:checked`);
+                    if (checked) filled++;
+                } else if (el.value.trim()) {
+                    filled++;
+                }
+            });
+            const pct = (filled / questions.length) * 100;
+            document.getElementById('progressFill').style.width = pct + '%';
+        }
+
+        async function submitSurvey() {
+            const btn = document.getElementById('submitBtn');
+            const errorMsg = document.getElementById('errorMsg');
+            
+            // Collect answers
+            let valid = true;
+            questions.forEach(q => {
+                if (q.type === 'radio' || q.type === 'rating') {
+                    const checked = document.querySelector(`input[name="${q.id}"]:checked`);
+                    answers[q.id] = checked ? checked.value : '';
+                } else {
+                    const el = document.getElementById(q.id);
+                    answers[q.id] = el ? el.value.trim() : '';
+                }
+                if (q.required && !answers[q.id]) valid = false;
+            });
+
+            if (!valid) {
+                errorMsg.textContent = 'Please answer all required questions.';
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Submitting...';
+            errorMsg.style.display = 'none';
+
+            try {
+                await db.collection('responses').add({
+                    ...answers,
+                    submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                document.getElementById('surveyForm').style.display = 'none';
+                document.getElementById('successMsg').style.display = 'block';
+            } catch (err) {
+                errorMsg.textContent = 'Error submitting. Check Firebase config.';
+                errorMsg.style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = 'Submit Survey';
+                console.error(err);
+            }
+        }
+
+        renderSurvey();
+    </script>
+</body>
+</html>

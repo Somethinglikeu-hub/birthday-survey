@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Birthday Survey</title>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f6fa;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header h1 { font-size: 1.5rem; font-weight: 600; }
+        .header-actions { display: flex; gap: 10px; align-items: center; }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+        .btn-primary { background: white; color: #667eea; }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        .btn-secondary { background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); }
+        .btn-secondary:hover { background: rgba(255,255,255,0.3); }
+        .container { max-width: 1200px; margin: 0 auto; padding: 30px; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            text-align: center;
+            border-left: 4px solid #667eea;
+        }
+        .stat-value { font-size: 2.5rem; font-weight: 700; color: #333; line-height: 1; }
+        .stat-label { color: #666; font-size: 0.9rem; margin-top: 8px; }
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 24px;
+            margin-bottom: 30px;
+        }
+        .chart-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        .chart-card.full-width { grid-column: 1 / -1; }
+        .chart-title { font-size: 1.1rem; font-weight: 600; color: #333; margin-bottom: 20px; }
+        .chart-container { position: relative; height: 300px; }
+        .chart-container.small { height: 250px; }
+        .responses-table {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        .table-header { padding: 20px 24px; border-bottom: 1px solid #eee; font-weight: 600; color: #333; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 14px 24px; text-align: left; border-bottom: 1px solid #f0f0f0; }
+        th { background: #fafbfc; font-weight: 600; color: #555; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        tr:hover td { background: #f8f9ff; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #999; }
+        .empty-state-icon { font-size: 3rem; margin-bottom: 15px; opacity: 0.5; }
+        .loading { display: flex; align-items: center; justify-content: center; height: 200px; color: #999; }
+        .question-detail {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        .question-detail h3 { margin-bottom: 16px; color: #333; font-size: 1rem; }
+        .answer-distribution { display: flex; flex-direction: column; gap: 8px; }
+        .answer-bar { display: flex; align-items: center; gap: 12px; }
+        .answer-label { width: 180px; font-size: 0.85rem; color: #555; }
+        .answer-bar-container { flex: 1; height: 24px; background: #f0f0f0; border-radius: 12px; overflow: hidden; position: relative; }
+        .answer-bar-fill { height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; transition: width 0.5s; }
+        .answer-count { width: 50px; text-align: right; font-weight: 600; color: #333; font-size: 0.85rem; }
+        .answer-percent { width: 50px; text-align: right; color: #666; font-size: 0.8rem; }
+        @media (max-width: 768px) {
+            .charts-grid { grid-template-columns: 1fr; }
+            .chart-card.full-width { grid-column: auto; }
+            .container { padding: 15px; }
+            .header { flex-direction: column; gap: 15px; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎂 Admin Dashboard</h1>
+        <div class="header-actions">
+            <a href="index.html" target="_blank" class="btn btn-secondary">View Survey</a>
+            <button class="btn btn-primary" onclick="refreshData()">🔄 Refresh</button>
+        </div>
+    </div>
+    <div class="container">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="totalResponses">0</div>
+                <div class="stat-label">Total Responses</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="avgRating">-</div>
+                <div class="stat-label">Avg. Importance Rating</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="attendanceRate">-</div>
+                <div class="stat-label">Party Attendance Likelihood</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="uniqueNames">-</div>
+                <div class="stat-label">Unique Participants</div>
+            </div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-card">
+                <div class="chart-title">📊 How did you meet?</div>
+                <div class="chart-container"><canvas id="chartMeet"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">❤️ Favorite Memory Type</div>
+                <div class="chart-container"><canvas id="chartMemory"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">⭐ Admired Quality</div>
+                <div class="chart-container"><canvas id="chartQuality"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">🎁 Preferred Gift Type</div>
+                <div class="chart-container"><canvas id="chartGift"></canvas></div>
+            </div>
+            <div class="chart-card full-width">
+                <div class="chart-title">📈 Responses Over Time</div>
+                <div class="chart-container"><canvas id="chartTimeline"></canvas></div>
+            </div>
+        </div>
+
+        <div class="chart-card" style="margin-bottom: 30px;">
+            <div class="chart-title">📝 Detailed Question Breakdown</div>
+            <div id="questionDetails"></div>
+        </div>
+
+        <div class="responses-table">
+            <div class="table-header">📋 All Responses</div>
+            <div id="responsesTable">
+                <div class="loading">Loading responses...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ===== FIREBASE CONFIG - SAME AS index.html =====
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+        // =====================================================
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        let allResponses = [];
+        const charts = {};
+
+        const questionLabels = {
+            q1: 'Name', q2: 'Email', q3: 'How did you meet?', q4: 'Favorite memory',
+            q5: 'Importance (1-5)', q6: 'Admired quality', q7: 'Preferred gift',
+            q8: 'One word', q9: 'Attendance (1-5)', q10: 'Birthday message'
+        };
+
+        async function loadResponses() {
+            try {
+                const snapshot = await db.collection('responses').orderBy('submittedAt', 'desc').get();
+                allResponses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                renderAll();
+            } catch (err) {
+                console.error('Error loading responses:', err);
+                document.getElementById('responsesTable').innerHTML = 
+                    '<div class="empty-state"><div class="empty-state-icon">⚠️</div><p>Error loading data. Check Firebase config.</p></div>';
+            }
+        }
+
+        function renderAll() {
+            renderStats();
+            renderCharts();
+            renderQuestionDetails();
+            renderTable();
+        }
+
+        function renderStats() {
+            const total = allResponses.length;
+            document.getElementById('totalResponses').textContent = total;
+
+            if (total === 0) {
+                document.getElementById('avgRating').textContent = '-';
+                document.getElementById('attendanceRate').textContent = '-';
+                document.getElementById('uniqueNames').textContent = '-';
+                return;
+            }
+
+            const q5Vals = allResponses.map(r => parseInt(r.q5)).filter(v => !isNaN(v));
+            const q9Vals = allResponses.map(r => parseInt(r.q9)).filter(v => !isNaN(v));
+            const avgRating = q5Vals.length ? (q5Vals.reduce((a,b)=>a+b,0)/q5Vals.length).toFixed(1) : '-';
+            const avgAttendance = q9Vals.length ? (q9Vals.reduce((a,b)=>a+b,0)/q9Vals.length).toFixed(1) : '-';
+            const uniqueNames = new Set(allResponses.map(r => r.q1?.toLowerCase().trim()).filter(Boolean)).size;
+
+            document.getElementById('avgRating').textContent = avgRating;
+            document.getElementById('attendanceRate').textContent = avgAttendance;
+            document.getElementById('uniqueNames').textContent = uniqueNames;
+        }
+
+        function getDistribution(field) {
+            const dist = {};
+            allResponses.forEach(r => {
+                const val = r[field];
+                if (val) dist[val] = (dist[val] || 0) + 1;
+            });
+            return dist;
+        }
+
+        function createChart(ctx, type, data, options = {}) {
+            if (charts[ctx.id]) charts[ctx.id].destroy();
+            charts[ctx.id] = new Chart(ctx, { type, data, options: { responsive: true, maintainAspectRatio: false, ...options } });
+        }
+
+        function renderCharts() {
+            // Meet chart
+            const meetDist = getDistribution('q3');
+            createChart(document.getElementById('chartMeet'), 'doughnut', {
+                labels: Object.keys(meetDist),
+                datasets: [{ data: Object.values(meetDist), backgroundColor: ['#667eea','#764ba2','#f39c12','#e74c3c','#27ae60','#9b59b6'] }]
+            });
+
+            // Memory chart
+            const memDist = getDistribution('q4');
+            createChart(document.getElementById('chartMemory'), 'doughnut', {
+                labels: Object.keys(memDist),
+                datasets: [{ data: Object.values(memDist), backgroundColor: ['#667eea','#764ba2','#f39c12','#e74c3c','#27ae60','#9b59b6'] }]
+            });
+
+            // Quality chart
+            const qualDist = getDistribution('q6');
+            createChart(document.getElementById('chartQuality'), 'pie', {
+                labels: Object.keys(qualDist),
+                datasets: [{ data: Object.values(qualDist), backgroundColor: ['#667eea','#764ba2','#f39c12','#e74c3c','#27ae60','#9b59b6'] }]
+            });
+
+            // Gift chart
+            const giftDist = getDistribution('q7');
+            createChart(document.getElementById('chartGift'), 'pie', {
+                labels: Object.keys(giftDist),
+                datasets: [{ data: Object.values(giftDist), backgroundColor: ['#667eea','#764ba2','#f39c12','#e74c3c','#27ae60','#9b59b6'] }]
+            });
+
+            // Timeline chart
+            const timelineData = {};
+            allResponses.forEach(r => {
+                if (r.submittedAt) {
+                    const date = r.submittedAt.toDate ? r.submittedAt.toDate().toISOString().split('T')[0] : new Date(r.submittedAt).toISOString().split('T')[0];
+                    timelineData[date] = (timelineData[date] || 0) + 1;
+                }
+            });
+            const sortedDates = Object.keys(timelineData).sort();
+            createChart(document.getElementById('chartTimeline'), 'line', {
+                labels: sortedDates,
+                datasets: [{ label: 'Responses', data: sortedDates.map(d => timelineData[d]), borderColor: '#667eea', backgroundColor: 'rgba(102,126,234,0.1)', fill: true, tension: 0.3 }]
+            }, { scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } });
+        }
+
+        function renderQuestionDetails() {
+            const container = document.getElementById('questionDetails');
+            container.innerHTML = '';
+
+            Object.entries(questionLabels).forEach(([key, label]) => {
+                const dist = getDistribution(key);
+                const total = Object.values(dist).reduce((a,b)=>a+b,0);
+                if (total === 0) return;
+
+                const detail = document.createElement('div');
+                detail.className = 'question-detail';
+                
+                let barsHtml = '';
+                Object.entries(dist).sort((a,b) => b[1] - a[1]).forEach(([answer, count]) => {
+                    const pct = ((count/total)*100).toFixed(1);
+                    const displayAnswer = answer.length > 30 ? answer.substring(0,30)+'...' : answer;
+                    barsHtml += `
+                        <div class="answer-bar">
+                            <span class="answer-label" title="${answer}">${displayAnswer}</span>
+                            <div class="answer-bar-container"><div class="answer-bar-fill" style="width: ${pct}%"></div></div>
+                            <span class="answer-count">${count}</span>
+                            <span class="answer-percent">${pct}%</span>
+                        </div>
+                    `;
+                });
+
+                detail.innerHTML = `<h3>${label}</h3><div class="answer-distribution">${barsHtml}</div>`;
+                container.appendChild(detail);
+            });
+        }
+
+        function renderTable() {
+            const container = document.getElementById('responsesTable');
+            if (allResponses.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><p>No responses yet. Share the survey link!</p></div>';
+                return;
+            }
+
+            let html = `<table><thead><tr><th>Time</th><th>Name</th><th>Email</th><th>Met via</th><th>Memory</th><th>Importance</th><th>Quality</th><th>Gift</th><th>One Word</th><th>Attendance</th><th>Message</th></tr></thead><tbody>`;
+            
+            allResponses.forEach(r => {
+                const time = r.submittedAt ? (r.submittedAt.toDate ? r.submittedAt.toDate().toLocaleString() : new Date(r.submittedAt).toLocaleString()) : 'Unknown';
+                html += `<tr>
+                    <td>${time}</td>
+                    <td>${r.q1 || ''}</td>
+                    <td>${r.q2 || ''}</td>
+                    <td>${r.q3 || ''}</td>
+                    <td>${r.q4 || ''}</td>
+                    <td>${r.q5 || ''}</td>
+                    <td>${r.q6 || ''}</td>
+                    <td>${r.q7 || ''}</td>
+                    <td>${r.q8 || ''}</td>
+                    <td>${r.q9 || ''}</td>
+                    <td>${(r.q10 || '').substring(0,50)}${(r.q10 || '').length > 50 ? '...' : ''}</td>
+                </tr>`;
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        function refreshData() {
+            loadResponses();
+        }
+
+        // Real-time listener
+        db.collection('responses').orderBy('submittedAt', 'desc').onSnapshot(snapshot => {
+            allResponses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            renderAll();
+        });
+
+        loadResponses();
+    </script>
+</body>
+</html>
