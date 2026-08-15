@@ -72,15 +72,14 @@
     </div>
 
     <script>
-        // ===== CONFIG - EDIT THESE ONCE =====
-        const GITHUB_OWNER = 'infenglov-hue';        // Your GitHub username
-        const GITHUB_REPO = 'birthday-survey-data';  // Your private repo name
-        const GITHUB_LABEL = 'survey-response';      // Label for survey issues
-        // PASTE YOUR PERSONAL ACCESS TOKEN HERE (classic, 'repo' scope):
-        const HARDCODED_TOKEN = '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';
-        // ======================================
+        // ===== CONFIG =====
+        const GITHUB_OWNER = 'Somethinglikeu-hub';
+        const GITHUB_REPO = 'birthday-survey-data';
+        const GITHUB_LABEL = 'survey-response';
+        // REAL TOKEN (not masked):
+        const HARDCODED_TOKEN = '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';
+        // ===================
 
-        // 10 Survey Questions
         const questions = [
             { id: 'q1', type: 'text', label: 'What is your name?', required: true, placeholder: 'Enter your name' },
             { id: 'q2', type: 'email', label: 'What is your email?', required: true, placeholder: 'you@example.com' },
@@ -177,12 +176,6 @@
         async function submitSurvey() {
             const btn = document.getElementById('submitBtn');
             const errorMsg = document.getElementById('errorMsg');
-
-            if (HARDCODED_TOKEN === 'REPLACE_ME' || !HARDCODED_TOKEN) {
-                errorMsg.textContent = 'Survey not configured yet. Contact the organizer.';
-                errorMsg.style.display = 'block';
-                return;
-            }
 
             let valid = true;
             const answers = {};

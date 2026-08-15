@@ -68,11 +68,11 @@
     </div>
 
     <div class="container">
-        <div class="setup-panel" id="setupPanel">
+        <div class="setup-panel" id="setupPanel" style="display:none;">
             <h3>⚙️ GitHub Configuration</h3>
             <p>Enter your GitHub Personal Access Token (<code>repo</code> scope) to load responses from Issues. Stored in localStorage.</p>
             <div class="setup-row">
-                <input type="text" id="ownerInput" placeholder="GitHub Owner (username)" value="infenglov-hue">
+                <input type="text" id="ownerInput" placeholder="GitHub Owner (username)" value="Somethinglikeu-hub">
                 <input type="text" id="repoInput" placeholder="Repo Name" value="birthday-survey-data">
                 <input type="password" id="tokenInput" placeholder="Personal Access Token (repo scope)">
                 <button class="btn btn-primary" onclick="saveConfig()">Save Config</button>
@@ -110,9 +110,14 @@
 
     <script>
         // Config from localStorage
-        let GITHUB_OWNER = localStorage.getItem('gh_owner') || 'infenglov-hue';
+        let GITHUB_OWNER = localStorage.getItem('gh_owner') || 'Somethinglikeu-hub';
         let GITHUB_REPO = localStorage.getItem('gh_repo') || 'birthday-survey-data';
         let GITHUB_TOKEN = localStorage.getItem('gh_token') || '';
+        // HARDCODED TOKEN FOR AUTO-LOAD (admin doesn't need to enter token)
+        const HARDCODED_ADMIN_TOKEN = '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';
+        if (HARDCODED_ADMIN_TOKEN && HARDCODED_ADMIN_TOKEN !== 'REPLACE_ME') {
+            GITHUB_TOKEN = HARDCODED_ADMIN_TOKEN;
+        }
         const GITHUB_LABEL = 'survey-response';
 
         document.getElementById('ownerInput').value = GITHUB_OWNER;
