@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Birthday Survey</title>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -26,121 +24,45 @@
             width: 100%;
             box-shadow: 0 20px 60px rgba(0,0,0,0.3);
         }
-        h1 {
-            color: #333;
-            text-align: center;
-            margin-bottom: 10px;
-            font-size: 2rem;
+        h1 { color: #333; text-align: center; margin-bottom: 10px; font-size: 2rem; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 30px; }
+        .setup-banner {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
         }
-        .subtitle {
-            text-align: center;
-            color: #666;
-            margin-bottom: 30px;
-        }
-        .question-block {
-            margin-bottom: 25px;
-            animation: fadeIn 0.5s ease-out;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .question-label {
-            display: block;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 8px;
-            font-size: 1rem;
-        }
+        .setup-banner code { background: #ffeaa7; padding: 2px 6px; border-radius: 4px; }
+        .question-block { margin-bottom: 25px; animation: fadeIn 0.5s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .question-label { display: block; font-weight: 600; color: #333; margin-bottom: 8px; font-size: 1rem; }
         .required::after { content: " *"; color: #e74c3c; }
         input[type="text"], input[type="email"], input[type="number"], select, textarea {
-            width: 100%;
-            padding: 12px 15px;
-            border: 2px solid #e1e5e9;
-            border-radius: 10px;
-            font-size: 1rem;
+            width: 100%; padding: 12px 15px; border: 2px solid #e1e5e9; border-radius: 10px; font-size: 1rem;
             transition: border-color 0.3s, box-shadow 0.3s;
         }
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
-        }
-        .options-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-            gap: 10px;
-        }
-        .option-card {
-            border: 2px solid #e1e5e9;
-            border-radius: 10px;
-            padding: 15px;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-align: center;
-        }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #667eea; box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2); }
+        .options-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+        .option-card { border: 2px solid #e1e5e9; border-radius: 10px; padding: 15px; cursor: pointer; transition: all 0.3s; text-align: center; }
         .option-card:hover { border-color: #667eea; background: #f8f9ff; }
-        .option-card.selected {
-            border-color: #667eea;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
+        .option-card.selected { border-color: #667eea; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
         .option-card input { display: none; }
-        .rating-stars {
-            display: flex;
-            gap: 8px;
-            justify-content: center;
-        }
+        .rating-stars { display: flex; gap: 8px; justify-content: center; }
         .rating-stars input { display: none; }
-        .rating-stars label {
-            font-size: 2rem;
-            color: #ddd;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
+        .rating-stars label { font-size: 2rem; color: #ddd; cursor: pointer; transition: transform 0.2s; }
         .rating-stars label:hover, .rating-stars label.selected { color: #f39c12; transform: scale(1.2); }
         .rating-stars input:checked ~ label { color: #f39c12; }
-        .submit-btn {
-            width: 100%;
-            padding: 15px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            margin-top: 10px;
-        }
+        .submit-btn { width: 100%; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; margin-top: 10px; }
         .submit-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4); }
         .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
-        .success-message {
-            display: none;
-            text-align: center;
-            padding: 40px;
-            color: #27ae60;
-        }
+        .success-message { display: none; text-align: center; padding: 40px; color: #27ae60; }
         .success-message h2 { margin-bottom: 15px; }
-        .error-message {
-            color: #e74c3c;
-            text-align: center;
-            margin-bottom: 15px;
-            display: none;
-        }
-        .progress-bar {
-            height: 4px;
-            background: #e1e5e9;
-            border-radius: 2px;
-            margin-bottom: 20px;
-            overflow: hidden;
-        }
-        .progress-fill {
-            height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            width: 0%;
-            transition: width 0.3s;
-        }
+        .error-message { color: #e74c3c; text-align: center; margin-bottom: 15px; display: none; }
+        .progress-bar { height: 4px; background: #e1e5e9; border-radius: 2px; margin-bottom: 20px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 0%; transition: width 0.3s; }
+        .token-input { width: 100%; padding: 12px; border: 2px solid #e1e5e9; border-radius: 10px; font-family: monospace; font-size: 0.85rem; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -148,34 +70,28 @@
         <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
         <h1>🎉 Birthday Survey</h1>
         <p class="subtitle">Help us celebrate! Answer 10 fun questions.</p>
-        
+
+        <div class="setup-banner" id="setupBanner">
+            <strong>Setup required:</strong> Enter your GitHub Personal Access Token (classic, <code>repo</code> scope) to submit responses to a private repo.
+            <br><small>Token is stored only in your browser's localStorage.</small>
+        </div>
+
         <div id="surveyForm">
             <div class="error-message" id="errorMsg"></div>
-            
-            <!-- Questions will be dynamically inserted here -->
         </div>
-        
+
         <div class="success-message" id="successMsg">
             <h2>🎉 Thanks for participating!</h2>
-            <p>Your responses have been recorded.</p>
+            <p>Your response has been saved to GitHub Issues.</p>
         </div>
     </div>
 
     <script>
-        // ===== FIREBASE CONFIG - REPLACE WITH YOUR OWN =====
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT.firebaseapp.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT.appspot.com",
-            messagingSenderId: "YOUR_SENDER_ID",
-            appId: "YOUR_APP_ID"
-        };
-        // =====================================================
-
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+        // ===== CONFIG - EDIT THESE =====
+        const GITHUB_OWNER = 'infenglov-hue';      // Your GitHub username
+        const GITHUB_REPO = 'birthday-survey-data'; // Private repo for responses (create this!)
+        const GITHUB_LABEL = 'survey-response';     // Label to identify survey issues
+        // ==================================
 
         // 10 Survey Questions
         const questions = [
@@ -191,25 +107,43 @@
             { id: 'q10', type: 'textarea', label: 'Any birthday message for them?', required: false, placeholder: 'Write your message here...' }
         ];
 
-        let currentQuestion = 0;
-        const answers = {};
+        let githubToken = localStorage.getItem('gh_survey_token') || '';
+        const tokenInput = document.createElement('input');
+        tokenInput.type = 'password';
+        tokenInput.className = 'token-input';
+        tokenInput.placeholder = 'GitHub Personal Access Token (repo scope)';
+        tokenInput.value = githubToken;
+        tokenInput.id = 'tokenInput';
+        tokenInput.onchange = (e) => {
+            githubToken = e.target.value;
+            localStorage.setItem('gh_survey_token', githubToken);
+            updateSetupBanner();
+        };
 
-        // Render all questions at once (single page)
+        function updateSetupBanner() {
+            const banner = document.getElementById('setupBanner');
+            if (githubToken) {
+                banner.innerHTML = '✅ Token saved. Ready to submit!';
+                banner.style.background = '#d4edda';
+                banner.style.borderColor = '#27ae60';
+                banner.style.color = '#155724';
+            }
+        }
+
+        // Insert token input at top of form
+        const form = document.getElementById('surveyForm');
+        form.insertBefore(tokenInput, form.firstChild);
+        updateSetupBanner();
+
         function renderSurvey() {
-            const form = document.getElementById('surveyForm');
-            const errorMsg = document.getElementById('errorMsg');
-            
             questions.forEach((q, index) => {
                 const block = document.createElement('div');
                 block.className = 'question-block';
                 block.id = `block-${q.id}`;
-                
-                let inputHtml = '';
                 const requiredHtml = q.required ? '<span class="required"></span>' : '';
-                
+                let inputHtml = '';
                 switch(q.type) {
-                    case 'text':
-                    case 'email':
+                    case 'text': case 'email':
                         inputHtml = `<input type="${q.type}" id="${q.id}" placeholder="${q.placeholder || ''}" ${q.required ? 'required' : ''}>`;
                         break;
                     case 'select':
@@ -225,12 +159,10 @@
                         inputHtml = `<textarea id="${q.id}" rows="3" placeholder="${q.placeholder || ''}" ${q.required ? 'required' : ''}></textarea>`;
                         break;
                 }
-                
                 block.innerHTML = `<label class="question-label" for="${q.id}">${index+1}. ${q.label}${requiredHtml}</label>${inputHtml}`;
-                form.insertBefore(block, errorMsg);
+                form.insertBefore(block, document.getElementById('errorMsg'));
             });
 
-            // Add submit button
             const submitBtn = document.createElement('button');
             submitBtn.className = 'submit-btn';
             submitBtn.id = 'submitBtn';
@@ -238,7 +170,6 @@
             submitBtn.onclick = submitSurvey;
             form.appendChild(submitBtn);
 
-            // Add event listeners for radio cards and stars
             document.querySelectorAll('.option-card').forEach(card => {
                 card.addEventListener('click', () => {
                     const name = card.querySelector('input').name;
@@ -276,20 +207,24 @@
                 if (q.type === 'radio' || q.type === 'rating') {
                     const checked = document.querySelector(`input[name="${q.id}"]:checked`);
                     if (checked) filled++;
-                } else if (el.value.trim()) {
-                    filled++;
-                }
+                } else if (el.value.trim()) filled++;
             });
-            const pct = (filled / questions.length) * 100;
-            document.getElementById('progressFill').style.width = pct + '%';
+            document.getElementById('progressFill').style.width = (filled / questions.length * 100) + '%';
         }
 
         async function submitSurvey() {
             const btn = document.getElementById('submitBtn');
             const errorMsg = document.getElementById('errorMsg');
-            
-            // Collect answers
+            const token = document.getElementById('tokenInput').value.trim();
+
+            if (!token) {
+                errorMsg.textContent = 'Please enter your GitHub Personal Access Token.';
+                errorMsg.style.display = 'block';
+                return;
+            }
+
             let valid = true;
+            const answers = {};
             questions.forEach(q => {
                 if (q.type === 'radio' || q.type === 'rating') {
                     const checked = document.querySelector(`input[name="${q.id}"]:checked`);
@@ -308,19 +243,49 @@
             }
 
             btn.disabled = true;
-            btn.textContent = 'Submitting...';
+            btn.textContent = 'Submitting to GitHub...';
             errorMsg.style.display = 'none';
 
             try {
-                await db.collection('responses').add({
-                    ...answers,
-                    submittedAt: firebase.firestore.FieldValue.serverTimestamp()
+                // Create issue body
+                const body = [
+                    '## 🎂 Birthday Survey Response',
+                    '',
+                    `**Name:** ${answers.q1}`,
+                    `**Email:** ${answers.q2}`,
+                    `**How met:** ${answers.q3}`,
+                    `**Favorite memory:** ${answers.q4}`,
+                    `**Importance (1-5):** ${answers.q5}`,
+                    `**Admired quality:** ${answers.q6}`,
+                    `**Preferred gift:** ${answers.q7}`,
+                    `**One word:** ${answers.q8}`,
+                    `**Attendance (1-5):** ${answers.q9}`,
+                    `**Message:** ${answers.q10 || '(none)'}`,
+                    '',
+                    `*Submitted: ${new Date().toISOString()}*`
+                ].join('\n');
+
+                const title = `Survey: ${answers.q1} - ${new Date().toLocaleDateString()}`;
+
+                const resp = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/issues`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `token ${token}`,
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ title, body, labels: [GITHUB_LABEL] })
                 });
-                
+
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    throw new Error(err.message || `HTTP ${resp.status}`);
+                }
+
                 document.getElementById('surveyForm').style.display = 'none';
                 document.getElementById('successMsg').style.display = 'block';
             } catch (err) {
-                errorMsg.textContent = 'Error submitting. Check Firebase config.';
+                errorMsg.textContent = 'Error: ' + err.message;
                 errorMsg.style.display = 'block';
                 btn.disabled = false;
                 btn.textContent = 'Submit Survey';
