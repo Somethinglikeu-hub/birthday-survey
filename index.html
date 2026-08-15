@@ -26,15 +26,6 @@
         }
         h1 { color: #333; text-align: center; margin-bottom: 10px; font-size: 2rem; }
         .subtitle { text-align: center; color: #666; margin-bottom: 30px; }
-        .setup-banner {
-            background: #fff3cd;
-            border: 1px solid #ffc107;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 20px;
-            font-size: 0.9rem;
-        }
-        .setup-banner code { background: #ffeaa7; padding: 2px 6px; border-radius: 4px; }
         .question-block { margin-bottom: 25px; animation: fadeIn 0.5s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .question-label { display: block; font-weight: 600; color: #333; margin-bottom: 8px; font-size: 1rem; }
@@ -62,7 +53,6 @@
         .error-message { color: #e74c3c; text-align: center; margin-bottom: 15px; display: none; }
         .progress-bar { height: 4px; background: #e1e5e9; border-radius: 2px; margin-bottom: 20px; overflow: hidden; }
         .progress-fill { height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); width: 0%; transition: width 0.3s; }
-        .token-input { width: 100%; padding: 12px; border: 2px solid #e1e5e9; border-radius: 10px; font-family: monospace; font-size: 0.85rem; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -71,27 +61,24 @@
         <h1>🎉 Birthday Survey</h1>
         <p class="subtitle">Help us celebrate! Answer 10 fun questions.</p>
 
-        <div class="setup-banner" id="setupBanner">
-            <strong>Setup required:</strong> Enter your GitHub Personal Access Token (classic, <code>repo</code> scope) to submit responses to a private repo.
-            <br><small>Token is stored only in your browser's localStorage.</small>
-        </div>
-
         <div id="surveyForm">
             <div class="error-message" id="errorMsg"></div>
         </div>
 
         <div class="success-message" id="successMsg">
             <h2>🎉 Thanks for participating!</h2>
-            <p>Your response has been saved to GitHub Issues.</p>
+            <p>Your response has been recorded.</p>
         </div>
     </div>
 
     <script>
-        // ===== CONFIG - EDIT THESE =====
-        const GITHUB_OWNER = 'infenglov-hue';      // Your GitHub username
-        const GITHUB_REPO = 'birthday-survey-data'; // Private repo for responses (create this!)
-        const GITHUB_LABEL = 'survey-response';     // Label to identify survey issues
-        // ==================================
+        // ===== CONFIG - EDIT THESE ONCE =====
+        const GITHUB_OWNER = 'infenglov-hue';        // Your GitHub username
+        const GITHUB_REPO = 'birthday-survey-data';  // Your private repo name
+        const GITHUB_LABEL = 'survey-response';      // Label for survey issues
+        // PASTE YOUR PERSONAL ACCESS TOKEN HERE (classic, 'repo' scope):
+        const HARDCODED_TOKEN = 'PASTE_YOUR_TOKEN_HERE';
+        // ======================================
 
         // 10 Survey Questions
         const questions = [
@@ -107,35 +94,10 @@
             { id: 'q10', type: 'textarea', label: 'Any birthday message for them?', required: false, placeholder: 'Write your message here...' }
         ];
 
-        let githubToken = localStorage.getItem('gh_survey_token') || '';
-        const tokenInput = document.createElement('input');
-        tokenInput.type = 'password';
-        tokenInput.className = 'token-input';
-        tokenInput.placeholder = 'GitHub Personal Access Token (repo scope)';
-        tokenInput.value = githubToken;
-        tokenInput.id = 'tokenInput';
-        tokenInput.onchange = (e) => {
-            githubToken = e.target.value;
-            localStorage.setItem('gh_survey_token', githubToken);
-            updateSetupBanner();
-        };
-
-        function updateSetupBanner() {
-            const banner = document.getElementById('setupBanner');
-            if (githubToken) {
-                banner.innerHTML = '✅ Token saved. Ready to submit!';
-                banner.style.background = '#d4edda';
-                banner.style.borderColor = '#27ae60';
-                banner.style.color = '#155724';
-            }
-        }
-
-        // Insert token input at top of form
-        const form = document.getElementById('surveyForm');
-        form.insertBefore(tokenInput, form.firstChild);
-        updateSetupBanner();
-
         function renderSurvey() {
+            const form = document.getElementById('surveyForm');
+            const errorMsg = document.getElementById('errorMsg');
+
             questions.forEach((q, index) => {
                 const block = document.createElement('div');
                 block.className = 'question-block';
@@ -160,7 +122,7 @@
                         break;
                 }
                 block.innerHTML = `<label class="question-label" for="${q.id}">${index+1}. ${q.label}${requiredHtml}</label>${inputHtml}`;
-                form.insertBefore(block, document.getElementById('errorMsg'));
+                form.insertBefore(block, errorMsg);
             });
 
             const submitBtn = document.createElement('button');
@@ -215,10 +177,9 @@
         async function submitSurvey() {
             const btn = document.getElementById('submitBtn');
             const errorMsg = document.getElementById('errorMsg');
-            const token = document.getElementById('tokenInput').value.trim();
 
-            if (!token) {
-                errorMsg.textContent = 'Please enter your GitHub Personal Access Token.';
+            if (HARDCODED_TOKEN === 'PASTE_YOUR_TOKEN_HERE' || !HARDCODED_TOKEN) {
+                errorMsg.textContent = 'Survey not configured yet. Contact the organizer.';
                 errorMsg.style.display = 'block';
                 return;
             }
@@ -243,11 +204,10 @@
             }
 
             btn.disabled = true;
-            btn.textContent = 'Submitting to GitHub...';
+            btn.textContent = 'Submitting...';
             errorMsg.style.display = 'none';
 
             try {
-                // Create issue body
                 const body = [
                     '## 🎂 Birthday Survey Response',
                     '',
@@ -270,7 +230,7 @@
                 const resp = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/issues`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `token ${token}`,
+                        'Authorization': `token ${HARDCODED_TOKEN}`,
                         'Accept': 'application/vnd.github.v3+json',
                         'Content-Type': 'application/json'
                     },
@@ -285,7 +245,7 @@
                 document.getElementById('surveyForm').style.display = 'none';
                 document.getElementById('successMsg').style.display = 'block';
             } catch (err) {
-                errorMsg.textContent = 'Error: ' + err.message;
+                errorMsg.textContent = 'Error submitting. Try again later.';
                 errorMsg.style.display = 'block';
                 btn.disabled = false;
                 btn.textContent = 'Submit Survey';
